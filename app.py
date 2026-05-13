@@ -43,26 +43,46 @@ def handle_proxy():
         }
 
         def stream_response():
-            # --- THE HEARTBEAT HACK ---
-            # Send an SSE comment immediately. Standard RP tools (SillyTavern/Janitor) 
-            # ignore lines starting with ':', but the HF Gateway sees this as "data" 
-            # and keeps the connection alive.
+            # Initial heartbeat
             yield ": connection established\n\n"
-            yield ": model is thinking...\n\n"
-
+            
             try:
-                # Use a longer read timeout for Pro (600s)
                 with requests.post(NIM_ENDPOINT, headers=headers, json=payload, stream=True, timeout=(15, 600)) as r:
                     if r.status_code != 200:
-                        yield f"data: {json.dumps({'error': 'NVIDIA Error', 'details': r.text})}\n\n"
+                        err_snippet = r.raw.read(500).decode('utf-8', 'ignore')
+                        yield f"data: {json.dumps({'error': 'NVIDIA Error', 'details': err_snippet})}\n\n"
                         return
 
-                    for chunk in r.iter_lines():
-                        if chunk:
-                            # Pass through the NVIDIA tokens
-                            yield chunk.decode('utf-8') + "\n\n"
+                    for line in r.iter_lines():
+                        if not line:
+                            continue
+                            
+                        decoded_line = line.decode('utf-8').strip()
+
+                        # 1. Catch the DONE signal and terminate cleanly
+                        if "[DONE]" in decoded_line:
+                            yield "data: [DONE]\n\n"
+                            break
+
+                        # 2. Skip usage chunks completely
+                        if '"choices":[]' in decoded_line or '"usage":' in decoded_line:
+                            continue
+
+                        # 3. Filter out "Reasoning" chunks for JanitorAI compatibility
+                        if '"reasoning"' in decoded_line or '"reasoning_content"' in decoded_line:
+                            # We just ignore these lines completely so the front-end never sees them.
+                            continue
+                            
+                        # 4. Ensure proper SSE formatting for actual content
+                        if decoded_line.startswith("data: "):
+                            yield f"{decoded_line}\n\n"
+                        else:
+                            yield f"data: {decoded_line}\n\n"
+
+            except requests.exceptions.Timeout:
+                yield f"data: {json.dumps({'error': 'NVIDIA Timeout', 'details': 'The model took too long.'})}\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                yield f"data: {json.dumps({'error': 'Proxy Loop Error', 'details': str(e)})}\n\n"
 
         return Response(stream_with_context(stream_response()), content_type='text/event-stream')
 
