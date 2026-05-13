@@ -1,7 +1,5 @@
 flask
 flask-cors
 requests
-# Using the [gevent] extra ensures all worker dependencies are met
-gunicorn[gevent]>=26.0.0
-gevent>=26.4.0
-greenlet>=3.1.1
+python-dotenv
+gunicorn
