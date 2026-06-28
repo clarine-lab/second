@@ -9,7 +9,7 @@ from flask_cors import CORS
 API_KEY = os.getenv("API_KEY")
 # Hugging Face models require the full repository ID
 DEFAULT_MODEL = "zai-org/GLM-4.7" 
-HF_ENDPOINT = "https://api-inference.huggingface.co/v1/chat/completions"
+HF_ENDPOINT = "https://router.huggingface.co/v1/chat/completions"
 
 app = Flask(__name__)
 CORS(app)
