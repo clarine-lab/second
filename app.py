@@ -5,17 +5,18 @@ import requests
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 
+# Your API_KEY environment variable will now need to be a Hugging Face Token (hf_...)
 API_KEY = os.getenv("API_KEY")
-# Case sensitivity: Some NIM versions prefer lowercase 'pro'
-DEFAULT_MODEL = "deepseek-ai/deepseek-v4-pro"
-NIM_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions"
+# Hugging Face models require the full repository ID
+DEFAULT_MODEL = "zai-org/GLM-4.7" 
+HF_ENDPOINT = "https://api-inference.huggingface.co/v1/chat/completions"
 
 app = Flask(__name__)
 CORS(app)
 
 @app.route('/', methods=["GET"])
 def health_check():
-    return "NVIDIA Pro-Ready Proxy Online", 200
+    return "Hugging Face Proxy Online", 200
 
 @app.route('/v1/chat/completions', methods=["POST"])
 @app.route('/chat/completions', methods=["POST"])
@@ -25,16 +26,14 @@ def handle_proxy():
         messages = data.get('messages', [])
         current_model = data.get("model", DEFAULT_MODEL)
 
+        # Removed NVIDIA-specific arguments (chat_template_kwargs, enable_thinking)
+        # Hugging Face handles formatting natively via the v1/chat/completions endpoint
         payload = {
             "model": current_model,
             "messages": messages,
-            "stream": True, # Force streaming for Pro
-            "temperature": data.get("temperature", 0.9),
-            "max_tokens": data.get("max_tokens", 4096),
-            "chat_template_kwargs": {
-                "enable_thinking": True,
-                "thinking": True
-            }
+            "stream": True, 
+            "temperature": data.get("temperature", 0.7),
+            "max_tokens": data.get("max_tokens", 4096)
         }
 
         headers = {
@@ -47,13 +46,13 @@ def handle_proxy():
             yield ": connection established\n\n"
             
             try:
-                with requests.post(NIM_ENDPOINT, headers=headers, json=payload, stream=True, timeout=(15, 600)) as r:
+                with requests.post(HF_ENDPOINT, headers=headers, json=payload, stream=True, timeout=(15, 600)) as r:
                     if r.status_code != 200:
                         err_snippet = r.raw.read(500).decode('utf-8', 'ignore')
                         # Format exactly how OpenAI sends errors
                         error_json = {
                             "error": {
-                                "message": f"NVIDIA Error {r.status_code}: {err_snippet}",
+                                "message": f"Hugging Face Error {r.status_code}: {err_snippet}",
                                 "type": "api_error"
                             }
                         }
@@ -88,7 +87,7 @@ def handle_proxy():
                                 
                                 content = delta.get("content")
                                 
-                                # Send heartbeat while model is "thinking"
+                                # Send heartbeat while model is processing
                                 if content is None and finish_reason is None:
                                     yield ": heartbeat\n\n"
                                     continue
@@ -99,9 +98,9 @@ def handle_proxy():
                                     clean_delta["content"] = content
                                     
                                 clean_chunk = {
-                                    "id": data_obj.get("id", "chatcmpl-proxy"),
+                                    "id": data_obj.get("id", "chatcmpl-hf-proxy"),
                                     "object": "chat.completion.chunk",
-                                    "created": data_obj.get("created", 0),
+                                    "created": data_obj.get("created", int(time.time())),
                                     "model": data_obj.get("model", current_model),
                                     "choices": [{
                                         "index": choices[0].get("index", 0),
@@ -116,7 +115,7 @@ def handle_proxy():
                                 yield f"{decoded_line}\n\n"
 
             except requests.exceptions.Timeout:
-                timeout_json = {"error": {"message": "NVIDIA Timeout: The model took too long to respond.", "type": "timeout"}}
+                timeout_json = {"error": {"message": "Hugging Face Timeout: The model took too long to respond.", "type": "timeout"}}
                 yield f"data: {json.dumps(timeout_json)}\n\n"
             except Exception as e:
                 loop_err_json = {"error": {"message": f"Proxy Loop Error: {str(e)}", "type": "proxy_error"}}
