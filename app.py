@@ -8,7 +8,7 @@ from flask_cors import CORS
 API_KEY = os.getenv("FIREWORKS_API_KEY")
 
 # Fireworks models require the 'accounts/fireworks/models/' prefix
-DEFAULT_MODEL = "accounts/fireworks/models/llama-v3p1-8b-instruct" 
+DEFAULT_MODEL = "accounts/fireworks/models/glm-4p6" 
 FIREWORKS_ENDPOINT = "https://api.fireworks.ai/inference/v1/chat/completions"
 
 app = Flask(__name__)
