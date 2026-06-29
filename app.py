@@ -17,8 +17,8 @@ CORS(app)
 def health_check():
     return "Cloudflare AI Proxy Online", 200
 
-@app.route('/v1/chat/completions', methods=["POST"])
-@app.route('/chat/completions', methods=["POST"])
+@app.route('/v1/chat/completions', strict_slashes=False, methods=["POST", "OPTIONS"])
+@app.route('/chat/completions', strict_slashes=False, methods=["POST", "OPTIONS"])
 def handle_proxy():
     try:
         data = request.get_json()
