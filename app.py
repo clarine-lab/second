@@ -8,7 +8,7 @@ ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 API_KEY = os.getenv("CLOUDFLARE_API_TOKEN")
 
 # Cloudflare model IDs use the @cf/author/model format
-DEFAULT_MODEL = "@cf/zhipu/glm-4-9b-chat-fast" 
+DEFAULT_MODEL = "@cf/moonshotai/kimi-k2.7-code" 
 CF_ENDPOINT = f"https://api.cloudflare.com/client/v4/accounts/fa8b077764056cf77cbdc90ba233b802/ai/v1/chat/completions"
 
 app = Flask(__name__)
