@@ -9,7 +9,7 @@ API_KEY = os.getenv("CLOUDFLARE_API_TOKEN")
 
 # Cloudflare model IDs use the @cf/author/model format
 DEFAULT_MODEL = "@cf/zhipu/glm-4-9b-chat-fast" 
-CF_ENDPOINT = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/v1/chat/completions"
+CF_ENDPOINT = f"https://api.cloudflare.com/client/v4/accounts/fa8b077764056cf77cbdc90ba233b802/ai/v1/chat/completions"
 
 app = Flask(__name__)
 CORS(app)
