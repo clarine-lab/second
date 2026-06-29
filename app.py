@@ -7,10 +7,11 @@ ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
 API_KEY = os.getenv("CLOUDFLARE_API_TOKEN")
 
 # Cloudflare model IDs use the @cf/author/model format
-DEFAULT_MODEL = "@cf/moonshotai/kimi-k2.7-code" 
+DEFAULT_MODEL = "@cf/zhipu/glm-4-9b-chat" 
 CF_ENDPOINT = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/v1/chat/completions"
 
 app = Flask(__name__)
+# This allows all external domains to talk to your Render app
 CORS(app)
 
 @app.route('/', methods=["GET"])
@@ -20,10 +21,14 @@ def health_check():
 @app.route('/v1/chat/completions', strict_slashes=False, methods=["POST", "OPTIONS"])
 @app.route('/chat/completions', strict_slashes=False, methods=["POST", "OPTIONS"])
 def handle_proxy():
+    # 1. The Preflight Catch: Stop the browser's security check from crashing the app
+    if request.method == "OPTIONS":
+        return Response(status=200)
+
     try:
-        data = request.get_json()
+        # 2. silent=True prevents a crash if the JSON is missing or malformed
+        data = request.get_json(silent=True) or {}
         
-        # Cloudflare requires the model ID in the payload, standard OpenAI style
         payload = {
             "model": data.get("model", DEFAULT_MODEL),
             "messages": data.get('messages', []),
@@ -39,13 +44,11 @@ def handle_proxy():
 
         def stream_response():
             try:
-                # Cloudflare's endpoint natively streams properly formatted OpenAI chunks
                 with requests.post(CF_ENDPOINT, headers=headers, json=payload, stream=True, timeout=(15, 600)) as r:
                     if r.status_code != 200:
                         yield f"data: {{\"error\": \"Cloudflare Error {r.status_code}: {r.text}\"}}\n\n"
                         return
                     
-                    # Pass the raw, correctly-formatted SSE lines straight through
                     for line in r.iter_lines():
                         if line:
                             yield f"{line.decode('utf-8')}\n\n"
