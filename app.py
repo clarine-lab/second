@@ -4,12 +4,11 @@ import requests
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 
-ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
-API_KEY = os.getenv("CLOUDFLARE_API_TOKEN")
+API_KEY = os.getenv("API_TOKEN")
 
 # Cloudflare model IDs use the @cf/author/model format
-DEFAULT_MODEL = "@cf/moonshotai/kimi-k2.7-code" 
-CF_ENDPOINT = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/v1/chat/completions"
+DEFAULT_MODEL = "zai-org/GLM-4.7" 
+ENDPOINT = f"https://inference.baseten.co/v1/chat/completions"
 
 app = Flask(__name__)
 CORS(app)
@@ -42,7 +41,7 @@ def handle_proxy():
 
         def stream_response():
             try:
-                with requests.post(CF_ENDPOINT, headers=headers, json=payload, stream=True, timeout=(15, 600)) as r:
+                with requests.post(ENDPOINT, headers=headers, json=payload, stream=True, timeout=(15, 600)) as r:
                     # 1. Safely format the Cloudflare error so it doesn't break the frontend UI
                     if r.status_code != 200:
                         error_obj = {"error": f"Cloudflare Error {r.status_code}: {r.text}"}
